@@ -30,7 +30,7 @@ class Signup(Resource):
             session['user_id'] = user.id
             return UserSchema().dump(user), 201
         
-        except integrityError:
+        except IntegrityError:
             return {'error': '422 unprocessable Entity'}, 422
 
 
@@ -39,18 +39,20 @@ class CheckSession(Resource):
         if session.get('user_id'):
             user = User.query.filter(User.id == session['user_id']).first()
             return UserSchema().dump(user), 200
-        return {}, 204
+        return {}, 401
 
 class Login(Resource):
     def post(self):
+
         username = request.get_json()['username']
         password = request.get_json()['password']
 
-        user = User.quesry.filter(User.username == username).first()
+        user = User.query.filter(User.username == username).first()
 
         if user and user.authenticate(password):
             session['user_id'] = user.id
             return UserSchema().dump(user), 200
+
         return {'error': '401 Unauthorized'}, 401
 
 class Logout(Resource):
@@ -61,11 +63,10 @@ class Logout(Resource):
         return {}, 204
 
 
-api.add_resource(ClearSession, '/clear', endpoint='clear')
 api.add_resource(Signup, '/signup', endpoint='signup')
 api.add_resource(CheckSession, '/check_session', endpoint='check_session')
-api.add_resource(Login, '/login')
-api.add_resource(Logout, '/logout')
+api.add_resource(Login, '/login', endpoint='login')
+api.add_resource(Logout, '/logout', endpoint='logout')
 
 if __name__ == '__main__':
     app.run(port=5555, debug=True)    
