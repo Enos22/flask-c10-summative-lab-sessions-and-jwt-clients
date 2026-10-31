@@ -1,6 +1,6 @@
-#Enos
 from marshmallow import Schema, fields
 
+
 class UserSchema(Schema):
-    id = fields.int()
+    id = fields.Integer()
     username = fields.String()
