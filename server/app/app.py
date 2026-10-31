@@ -58,9 +58,10 @@ class Login(Resource):
 class Logout(Resource):
     def delete(self):
 
-        session['user_id'] = None
-
-        return {}, 204
+        if session.get('user_id'):
+            session['user_id'] = None
+            return {}, 204
+        return {}, 401
 
 
 api.add_resource(Signup, '/signup', endpoint='signup')
