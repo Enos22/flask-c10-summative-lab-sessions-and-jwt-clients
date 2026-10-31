@@ -1,31 +1,25 @@
 import React, { useState } from "react";
-import { Button, Error, Input, FormField, Label, Textarea } from "../styles";
+import { Button, Error, Input, FormField, Label } from "../styles";
 
-function SignUpForm({ onLogin }) {
+function LoginForm({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [errors, setErrors] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
   function handleSubmit(e) {
     e.preventDefault();
-    setErrors([]);
     setIsLoading(true);
-    fetch("/signup", {
+    fetch("/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        username,
-        password,
-        password_confirmation: passwordConfirmation
-      }),
+      body: JSON.stringify({ username, password }),
     }).then((r) => {
       setIsLoading(false);
       if (r.ok) {
-        r.json().then(({token, user}) => onLogin(token, user));
+        r.json().then((user) => onLogin(user));
       } else {
         r.json().then((err) => setErrors(err.errors));
       }
@@ -49,23 +43,15 @@ function SignUpForm({ onLogin }) {
         <Input
           type="password"
           id="password"
+          autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          autoComplete="current-password"
         />
       </FormField>
       <FormField>
-        <Label htmlFor="password">Password Confirmation</Label>
-        <Input
-          type="password"
-          id="password_confirmation"
-          value={passwordConfirmation}
-          onChange={(e) => setPasswordConfirmation(e.target.value)}
-          autoComplete="current-password"
-        />
-      </FormField>
-      <FormField>
-        <Button type="submit">{isLoading ? "Loading..." : "Sign Up"}</Button>
+        <Button variant="fill" color="primary" type="submit">
+          {isLoading ? "Loading..." : "Login"}
+        </Button>
       </FormField>
       <FormField>
         {errors.map((err) => (
@@ -76,4 +62,4 @@ function SignUpForm({ onLogin }) {
   );
 }
 
-export default SignUpForm;
+export default LoginForm;

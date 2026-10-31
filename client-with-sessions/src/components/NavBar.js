@@ -3,10 +3,13 @@ import { Link } from "react-router-dom";
 import styled from "styled-components";
 import { Button } from "../styles";
 
-function NavBar({ setUser }) {
+function NavBar({ user, setUser }) {
   function handleLogoutClick() {
-    localStorage.removeItem("token");
-    setUser(null);
+    fetch("/logout", { method: "DELETE" }).then((r) => {
+      if (r.ok) {
+        setUser(null);
+      }
+    });
   }
 
   return (
