@@ -1,5 +1,4 @@
-from app.extensions import db
-
+from extensions import db
 
 DAY_ORDER = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
@@ -33,3 +32,4 @@ class MedicationSchedule(db.Model):
 
     def __repr__(self):
         return f"<MedicationSchedule {self.id} med={self.medication_id} {self.reminder_time} {self.days}>"
+    
