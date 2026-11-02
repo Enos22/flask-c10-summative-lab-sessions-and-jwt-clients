@@ -1,4 +1,3 @@
-#Fiona
 """Reports and reminder endpoints for MediReminder.
 
 Owner: Fiona (Reminders & Reports)
@@ -19,8 +18,11 @@ Endpoints (all under /api/reports):
 from datetime import date, datetime, timedelta
 from functools import wraps
 
-from flask import Blueprint, jsonify, request, session
+import os
 
+from flask import Blueprint, Flask, jsonify, request, session
+
+from server.extensions import db
 from server.services import adherence_service, reminder_service
 
 reports_bp = Blueprint("reports", __name__, url_prefix="/api/reports")
@@ -200,3 +202,44 @@ def due_reminders():
     reminders = reminder_service.get_due_reminders(session["user_id"], overdue)
     return jsonify({"overdue_minutes": overdue, "count": len(reminders),
                     "reminders": reminders})
+
+
+# --------------------------------------------------------------------------
+# App setup 
+# --------------------------------------------------------------------------
+def create_app():
+    """Create a Flask app with only the reports routes, for running/testing."""
+    app = Flask(__name__)
+
+    base_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-change-me")
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
+        "DATABASE_URL", "sqlite:///" + os.path.join(base_dir, "medireminder.db")
+    )
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    db.init_app(app)
+    app.register_blueprint(reports_bp)
+
+    # Testing shortcuts until the real login from the auth module is merged.
+    if app.debug or os.environ.get("ENABLE_DEV_LOGIN") == "1":
+
+        @app.get("/dev/login/<int:user_id>")
+        def dev_login(user_id):
+            session["user_id"] = user_id
+            return jsonify({"message": f"Logged in as user {user_id} (dev only)"})
+
+        @app.get("/dev/logout")
+        def dev_logout():
+            session.clear()
+            return jsonify({"message": "Logged out"})
+
+    with app.app_context():
+        from server import models  # noqa: F401  (registers the tables)
+        db.create_all()
+
+    return app
+
+
+if __name__ == "__main__":
+    create_app().run(debug=True, port=5000)
