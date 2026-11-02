@@ -10,7 +10,6 @@ from schemas.medication_schema import (
     medications_schema
 )
 
-
 medications_bp = Blueprint(
     "medications",
     __name__,

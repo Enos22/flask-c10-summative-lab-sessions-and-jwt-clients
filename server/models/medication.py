@@ -23,8 +23,6 @@ class Medication(db.Model):
         db.ForeignKey("users.id"),
         nullable=False
     )
-
-    # Connect medication to its owner
     user = db.relationship(
         "User",
         backref=db.backref("medications", lazy=True)
