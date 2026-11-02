@@ -14,6 +14,19 @@ class User(db.Model):
 
     @password_hash.setter
     def password_hash(self, password):
+        if not password:
+            raise ValueError("Password is Required")
+        if len(password) < 8:
+            raise ValueError("Password must be atleast 8 Characters")
+        if len(password) > 32:
+            raise ValueError("Password must be less than 32 characters")
+        if password.strip() != password:
+            raise ValueError("Password cannot start or End with spaces")
+        if not any(c.isupper() for c in password):
+            raise ValueError("Password must have an uppercase letter!")
+        if not any(c.isdigit() for c in password):
+            raise ValueError("Password must have a Number")
+
         self._password_hash = bcrypt.generate_password_hash(
             password.encode('utf-8')
         ).decode('utf-8')
