@@ -42,7 +42,5 @@ class MedicationSchema(Schema):
                 "End date cannot be before start date."
             )
 
-
 medication_schema = MedicationSchema()
-
 medications_schema = MedicationSchema(many=True)
