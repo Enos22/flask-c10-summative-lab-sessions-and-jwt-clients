@@ -8,7 +8,7 @@ class ScheduleSchema(Schema):
     medication_id = fields.Int(required=True)
 
     reminder_time = fields.Time(required=True, format="%H:%M")
-    
+
     days_of_week = fields.List(
         fields.Str(validate=validate.OneOf(DAY_ORDER)),
         required=True,
