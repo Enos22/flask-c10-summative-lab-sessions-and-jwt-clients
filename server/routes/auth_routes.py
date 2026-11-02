@@ -32,14 +32,17 @@ class Signup(Resource):
         username = username.strip()
         if User.query.filter_by(username=username).first():
             return {'errors': ['That username is already taken.']}, 422
-
-        user = User(username=username)
-        user.password_hash = password
-        db.session.add(user)
-        db.session.commit()
-        session.clear()
-        session['user_id'] = user.id
-        return UserSchema().dump(user), 201
+        try:
+            user = User(username=username)
+            user.password_hash = password
+            db.session.add(user)
+            db.session.commit()
+            session.clear()
+            session['user_id'] = user.id
+            return UserSchema().dump(user), 201
+        except ValueError as e:
+            db.session.rollback()
+            return {'errors': [str(e)]}, 422
 
 class CheckSession(Resource):
     def get(self):
