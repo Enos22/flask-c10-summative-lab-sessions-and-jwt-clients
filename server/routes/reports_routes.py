@@ -2,9 +2,14 @@
 
 Owner: Fiona (Reminders & Reports)
 
-All routes require a logged-in user (session-based auth). The session is
-expected to hold the user's id under session["user_id"]; confirm this key
-with the Authentication module (Enos).
+Follows the team's pattern (see auth_routes.py): import the shared `app`
+from app.config, register routes on it, and run this file directly.
+
+Run from the server/ folder:
+    python -m routes.reports_routes
+
+Login is handled by auth_routes.py (session["user_id"]). Its global
+before_request already returns 401 to anyone not logged in.
 
 Endpoints (all under /api/reports):
     GET /daily                   one day's doses + summary   ?date=YYYY-MM-DD
@@ -14,37 +19,32 @@ Endpoints (all under /api/reports):
     GET /completed               taken doses                 ?start=&end=
     GET /reminders/upcoming      what is coming up           ?minutes=60
     GET /reminders/due           what is due / overdue now   ?overdue=60
+
+All dates are local dates (Nairobi by default); times are returned in UTC
+with a trailing Z so the React app can show them in local time.
 """
-from datetime import date, datetime, timedelta
-from functools import wraps
+from datetime import datetime, timedelta
 
-import os
+from flask import Blueprint, jsonify, request, session
 
-from flask import Blueprint, Flask, jsonify, request, session
-
-from server.extensions import db
-from server.services import adherence_service, reminder_service
+from app.config import app
+from services import adherence_service, reminder_service
 
 reports_bp = Blueprint("reports", __name__, url_prefix="/api/reports")
 
 
-# --------------------------------------------------------------------------
-# Helpers
-# --------------------------------------------------------------------------
-def login_required(view):
-    """Reject the request unless a user is logged in.
+@reports_bp.before_request
+def require_login():
+    if not session.get("user_id"):
+        return jsonify({"error": "Authentication required."}), 401
 
-    If the Authentication module provides a shared decorator, import that
-    instead and delete this one so everyone uses the same behaviour.
-    """
 
-    @wraps(view)
-    def wrapped(*args, **kwargs):
-        if "user_id" not in session:
-            return jsonify({"error": "Authentication required"}), 401
-        return view(*args, **kwargs)
+def _user_id():
+    return session.get("user_id")
 
-    return wrapped
+
+def error(message, status=400):
+    return jsonify({"error": message}), status
 
 
 def parse_date(value, default):
@@ -58,7 +58,7 @@ def parse_date(value, default):
 
 
 def parse_int(name, default, minimum=0, maximum=10000):
-    """Read a positive integer query parameter. Returns (int, error_message)."""
+    """Read an integer query parameter. Returns (int, error_message)."""
     raw = request.args.get(name)
     if raw is None:
         return default, None
@@ -73,7 +73,7 @@ def parse_int(name, default, minimum=0, maximum=10000):
 
 def date_range(default_days=7):
     """Read ?start= and ?end= (inclusive). Returns (start, end, error)."""
-    today = date.today()
+    today = reminder_service.local_today()
     end, err = parse_date(request.args.get("end"), today)
     if err:
         return None, None, err
@@ -87,27 +87,22 @@ def date_range(default_days=7):
     return start, end, None
 
 
-def error(message, status=400):
-    return jsonify({"error": message}), status
-
-
 # --------------------------------------------------------------------------
 # Reports
 # --------------------------------------------------------------------------
 @reports_bp.get("/daily")
-@login_required
 def daily_report():
     """Everything for one day: doses grouped by status, plus a summary."""
-    day, err = parse_date(request.args.get("date"), date.today())
+    today = reminder_service.local_today()
+    day, err = parse_date(request.args.get("date"), today)
     if err:
         return error(err)
 
-    user_id = session["user_id"]
-    if day == date.today():
+    if day == today:
         # Make sure today's pending doses exist so the report is complete.
-        reminder_service.generate_doses_for_date(user_id, day)
+        reminder_service.generate_doses_for_date(_user_id(), day)
 
-    doses = adherence_service.fetch_dose_dicts(user_id, day, day)
+    doses = adherence_service.fetch_dose_dicts(_user_id(), day, day)
     return jsonify({
         "date": day.isoformat(),
         "summary": adherence_service.summarize(d["status"] for d in doses),
@@ -118,128 +113,79 @@ def daily_report():
 
 
 @reports_bp.get("/history")
-@login_required
 def history_report():
     """A summary for each day in a range (default: last 7 days)."""
     start, end, err = date_range(default_days=7)
     if err:
         return error(err)
-
     return jsonify({
         "start": start.isoformat(),
         "end": end.isoformat(),
-        "days": adherence_service.daily_history(session["user_id"], start, end),
+        "days": adherence_service.daily_history(_user_id(), start, end),
     })
 
 
 @reports_bp.get("/adherence")
-@login_required
 def adherence_report():
     """Overall adherence over the last N days, with a per-medication split."""
     days, err = parse_int("days", 30, minimum=1, maximum=366)
     if err:
         return error(err)
-
-    end = date.today()
+    end = reminder_service.local_today()
     start = end - timedelta(days=days - 1)
-    return jsonify(adherence_service.calculate_adherence(session["user_id"], start, end))
+    return jsonify(adherence_service.calculate_adherence(_user_id(), start, end))
+
+
+def _doses_with_status(status):
+    start, end, err = date_range(default_days=7)
+    if err:
+        return error(err)
+    doses = adherence_service.fetch_dose_dicts(_user_id(), start, end)
+    matching = [d for d in doses if d["status"] == status]
+    matching.sort(key=lambda d: d["scheduled_time"], reverse=True)
+    return jsonify({"start": start.isoformat(), "end": end.isoformat(),
+                    "count": len(matching), "doses": matching})
 
 
 @reports_bp.get("/missed")
-@login_required
 def missed_doses():
     """Missed doses in a range (default: last 7 days), newest first."""
-    start, end, err = date_range(default_days=7)
-    if err:
-        return error(err)
-
-    doses = adherence_service.fetch_dose_dicts(session["user_id"], start, end)
-    missed = [d for d in doses if d["status"] == "missed"]
-    missed.sort(key=lambda d: d["scheduled_time"], reverse=True)
-    return jsonify({"start": start.isoformat(), "end": end.isoformat(),
-                    "count": len(missed), "doses": missed})
+    return _doses_with_status("missed")
 
 
 @reports_bp.get("/completed")
-@login_required
 def completed_doses():
     """Taken doses in a range (default: last 7 days), newest first."""
-    start, end, err = date_range(default_days=7)
-    if err:
-        return error(err)
-
-    doses = adherence_service.fetch_dose_dicts(session["user_id"], start, end)
-    taken = [d for d in doses if d["status"] == "taken"]
-    taken.sort(key=lambda d: d["scheduled_time"], reverse=True)
-    return jsonify({"start": start.isoformat(), "end": end.isoformat(),
-                    "count": len(taken), "doses": taken})
+    return _doses_with_status("taken")
 
 
 # --------------------------------------------------------------------------
 # Reminders
 # --------------------------------------------------------------------------
 @reports_bp.get("/reminders/upcoming")
-@login_required
 def upcoming_reminders():
     """Doses coming up in the next N minutes (default 60)."""
     minutes, err = parse_int("minutes", 60, minimum=1, maximum=1440)
     if err:
         return error(err)
-
-    reminders = reminder_service.get_upcoming_reminders(session["user_id"], minutes)
+    reminders = reminder_service.get_upcoming_reminders(_user_id(), minutes)
     return jsonify({"window_minutes": minutes, "count": len(reminders),
                     "reminders": reminders})
 
 
 @reports_bp.get("/reminders/due")
-@login_required
 def due_reminders():
-    """Doses due now or overdue (but not yet marked) within the last N minutes."""
+    """Doses due now or overdue (not yet marked) within the last N minutes."""
     overdue, err = parse_int("overdue", 60, minimum=1, maximum=1440)
     if err:
         return error(err)
-
-    reminders = reminder_service.get_due_reminders(session["user_id"], overdue)
+    reminders = reminder_service.get_due_reminders(_user_id(), overdue)
     return jsonify({"overdue_minutes": overdue, "count": len(reminders),
                     "reminders": reminders})
 
 
-# --------------------------------------------------------------------------
-# App setup 
-# --------------------------------------------------------------------------
-def create_app():
-    """Create a Flask app with only the reports routes, for running/testing."""
-    app = Flask(__name__)
-
-    base_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-only-change-me")
-    app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get(
-        "DATABASE_URL", "sqlite:///" + os.path.join(base_dir, "medireminder.db")
-    )
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
-    db.init_app(app)
-    app.register_blueprint(reports_bp)
-
-    # Testing shortcuts until the real login from the auth module is merged.
-    if app.debug or os.environ.get("ENABLE_DEV_LOGIN") == "1":
-
-        @app.get("/dev/login/<int:user_id>")
-        def dev_login(user_id):
-            session["user_id"] = user_id
-            return jsonify({"message": f"Logged in as user {user_id} (dev only)"})
-
-        @app.get("/dev/logout")
-        def dev_logout():
-            session.clear()
-            return jsonify({"message": "Logged out"})
-
-    with app.app_context():
-        from server import models  # noqa: F401  (registers the tables)
-        db.create_all()
-
-    return app
+app.register_blueprint(reports_bp)
 
 
 if __name__ == "__main__":
-    create_app().run(debug=True, port=5000)
+    app.run(port=5555, debug=True)
