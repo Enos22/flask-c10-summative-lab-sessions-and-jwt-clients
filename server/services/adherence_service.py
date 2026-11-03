@@ -41,7 +41,8 @@ def effective_status(dose, now=None, grace_minutes=GRACE_MINUTES):
     now = now or datetime.now()
     status = (dose.status or "pending").lower()
     if status == "pending":
-        if dose.scheduled_time + timedelta(minutes=grace_minutes) < now:
+        #changed dose.scheduled_for to dose.scheduled_for
+        if dose.scheduled_for + timedelta(minutes=grace_minutes) < now:
             return "missed"
     return status
 
@@ -55,7 +56,8 @@ def dose_to_dict(dose, schedule, medication, now=None):
         "medication_id": medication.id,
         "medication_name": medication.name,
         "dosage": medication.dosage,
-        "scheduled_time": dose.scheduled_time.isoformat(),
+                #changed dose.scheduled_for to dose.scheduled_for
+        "scheduled_time": dose.scheduled_for.isoformat(),
         "status": effective_status(dose, now),
         "recorded_status": dose.status,
         "taken_at": taken_at.isoformat() if taken_at else None,
@@ -75,8 +77,8 @@ def fetch_dose_dicts(user_id, start_date, end_date, now=None):
     start_dt, end_dt = _day_bounds(start_date, end_date)
     rows = (
         user_doses_query(user_id)
-        .filter(Dose.scheduled_time >= start_dt, Dose.scheduled_time < end_dt)
-        .order_by(Dose.scheduled_time)
+        .filter(Dose.scheduled_for >= start_dt, Dose.scheduled_for < end_dt)
+        .order_by(Dose.scheduled_for)
         .all()
     )
     return [dose_to_dict(d, s, m, now) for d, s, m in rows]
