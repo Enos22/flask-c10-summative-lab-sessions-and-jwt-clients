@@ -68,8 +68,8 @@ def get_medications():
 
     if not user_id:
         return jsonify({"error": "Please log in first"}), 401
-
-    medications = Medication.query.all()
+#correcteed the db quary from .all to .filter_by
+    medications = Medication.query.filter_by(user_id=user_id).all()
     print(medications)
     return jsonify({
         "medications": medications_schema.dump(medications)

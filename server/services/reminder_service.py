@@ -50,20 +50,26 @@ def parse_days(value):
 
 def occurs_on(schedule, day):
     """True if the schedule runs on the given date."""
-    return day.weekday() in parse_days(schedule.days_of_week)
+    #corrected logic from days of week to days
+    return day.weekday() in parse_days(schedule.days)
 
 
 def occurrence_datetime(schedule, day):
     """The exact datetime a schedule fires on a given date."""
-    return datetime.combine(day, schedule.time)
+    #corrcted frm schedule.time to schedule.reminder_time for clarity
+    return datetime.combine(day, schedule.reminder_time)
 
 
 def user_schedules(user_id):
     """All (schedule, medication) pairs owned by a user."""
     return (
         db.session.query(MedicationSchedule, Medication)
+        #edit to chek logic
         .join(Medication, MedicationSchedule.medication_id == Medication.id)
-        .filter(Medication.user_id == user_id)
+        .filter(
+            Medication.user_id == user_id,
+            MedicationSchedule.is_active.is_(True),
+        )
         .all()
     )
 
@@ -71,7 +77,8 @@ def user_schedules(user_id):
 def find_dose(schedule_id, scheduled_time):
     """The Dose row for one occurrence, or None if it was never created."""
     return Dose.query.filter_by(
-        schedule_id=schedule_id, scheduled_time=scheduled_time
+        #resolved logc err from scheduled_time = scheduled_time to:
+        schedule_id=schedule_id, scheduled_for=scheduled_time
     ).first()
 
 
@@ -155,7 +162,8 @@ def generate_doses_for_date(user_id, day=None, commit=True):
         if find_dose(schedule.id, when):
             continue
         db.session.add(
-            Dose(schedule_id=schedule.id, scheduled_time=when, status="pending")
+            #resolved logc err fromm scheduled_time to scheduled_for
+            Dose(schedule_id=schedule.id, scheduled_for=when, status="pending")
         )
         created += 1
 
