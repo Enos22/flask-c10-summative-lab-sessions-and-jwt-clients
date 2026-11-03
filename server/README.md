@@ -1,266 +1,188 @@
-1. Team task allocation
-Enos arenga  Authentication & Users
-Member 1
-Files:
-* routes/auth.py
-* models/user.py
-* schemas/user_schema.py
-Responsibilities:
-* User registration.
-* Login and logout.
-* Password hashing.
-* Authentication and user access protection.
+# MediReminder Backend
 
+## Description
 
+MediReminder is a REST API backend for a medication reminder app. Users sign up, log in, and manage their own medications, the schedules for taking them, and a record of whether each dose was taken or missed. The API serves a React frontend and is built with Flask, Flask-SQLAlchemy, Flask-Migrate and Marshmallow, using SQLite for storage.
 
-Benson maina Medication Management
-Member 2
-Files:
-* routes/medications.py
-* models/medication.py
-* schemas/medication_schema.py
-Responsibilities:
-* Add medications.
-* View medications.
-* Update medication details.
-* Delete medications.
+Every resource is owned by a user. Users can only see and change their own data.
 
+<!-- TODO (team): confirm session-based auth is the final choice (the repo also ships a JWT client). -->
+Authentication is session-based: logging in stores the user's id in the session, and protected routes return `401` when nobody is logged in.
 
+### Data model
 
-Samadi  Medication Scheduling
-Member 3
-Files:
-* routes/schedules.py
-* models/medication_schedule.py
-* schemas/schedule_schema.py
-Responsibilities:
-* Create medication schedules.
-* Set reminder times.
-* Manage days of the week.
-* Update and delete schedules.
+```
+User  ->  Medication  ->  MedicationSchedule  ->  Dose
+ 1:many      1:many            1:many
+```
 
-Waynemarkouma  Dose Tracking
-Member 4
-Files:
-* routes/doses.py
-* models/dose.py
-* schemas/dose_schema.py
-Responsibilities:
-* Display scheduled doses.
-* Mark doses as taken.
-* Mark doses as missed.
-* Record when medication was taken.
-Faith  Reminders & Reports
-Member 5
-Files:
-* routes/reports.py
-* services/reminder_service.py
-* services/adherence_service.py
-Responsibilities:
-* Identify upcoming medication reminders.
-* Calculate medication adherence.
-* Generate daily reports.
-* Display missed and completed doses.
+| Model | Purpose |
+|---|---|
+| `User` | Account with a unique username and a hashed password |
+| `Medication` | A medication's name, dosage and instructions, owned by a user |
+| `MedicationSchedule` | When a medication is taken: reminder time, days of the week, active flag |
+| `Dose` | Whether one scheduled dose was taken, missed or is still pending |
 
+## Project structure
 
-2. Shared backend structure
-Everyone should follow the same folder structure.
-backend/
-?
-??? app/
-?   ??? __init__.py
-?   ??? config.py
-?   ?
-?   ??? models/
-?   ?   ??? user.py
-?   ?   ??? medication.py
-?   ?   ??? medication_schedule.py
-?   ?   ??? dose.py
-?   ?
-?   ??? routes/
-?   ?   ??? auth.py
-?   ?   ??? medications.py
-?   ?   ??? schedules.py
-?   ?   ??? doses.py
-?   ?   ??? reports.py
-?   ?
-?   ??? schemas/
-?   ??? services/
-?   ??? extensions.py
-?
-??? migrations/
-??? tests/
-??? requirements.txt
-??? run.py
-3. How the five collaborators will work together
-Stage
-Responsibility
-1
-Agree on database models and relationships.
-2
-Each member develops their assigned module.
-3
-Each member tests their API endpoints.
-4
-Merge the five modules into the main branch.
-5
-Test the complete backend together.
-6
-Connect the backend to React.
-4. Important team rules
-To avoid Git conflicts:
-* Each collaborator should work on a separate feature branch.
-* Do not let everyone edit app/__init__.py, extensions.py, or requirements.txt independently.
-* Agree on database relationships and API response formats before development.
-* One person should coordinate migrations to prevent conflicting database changes.
-* Merge completed work through pull requests.
-5. Recommended responsibility for the team lead
-The team lead should coordinate the shared application setup, database configuration, migrations, code reviews, and final integration.
+```
+server/
+├── app/                    # application package and configuration
+│   ├── __init__.py
+│   └── config.py
+├── extensions.py           # shared extension objects (db, bcrypt, migrate)
+├── models/                 # SQLAlchemy models
+│   ├── user.py
+│   ├── medication.py
+│   ├── medication_schedule.py
+│   └── dose.py
+├── routes/                 # API endpoints (one blueprint per resource)
+│   ├── auth_routes.py
+│   ├── medication_routes.py
+│   ├── schedules.py
+│   ├── dose_routes.py
+│   └── reports_routes.py
+├── schemas/                # Marshmallow validation and serialization
+├── services/               # reminder and adherence logic
+├── seed.py                 # example data for all models
+└── Pipfile                 # dependencies
+```
 
+## Installation
 
-# MORE on individual tasks
+Requirements: Python 3.8 or newer, Git and [Pipenv](https://pipenv.pypa.io/).
 
-MediReminder  Backend Structure
-For MediReminder, we will use Python, Flask, SQLAlchemy, SQLite, Flask-Migrate, and Marshmallow.
-The backend is responsible for storing medication information, managing schedules, tracking doses, and providing data to the React frontend through REST APIs.
-1. Project folder structure
-medireminder/
-?
-??? backend/
-?   ?
-?   ??? app/
-?   ?   ??? __init__.py
-?   ?   ??? config.py
-?   ?   ?
-?   ?   ??? models/
-?   ?   ?   ??? __init__.py
-?   ?   ?   ??? user.py
-?   ?   ?   ??? medication.py
-?   ?   ?   ??? medication_schedule.py
-?   ?   ?   ??? dose.py
-?   ?   ?
-?   ?   ??? routes/
-?   ?   ?   ??? __init__.py
-?   ?   ?   ??? auth.py
-?   ?   ?   ??? medications.py
-?   ?   ?   ??? schedules.py
-?   ?   ?   ??? doses.py
-?   ?   ?   ??? reports.py
-?   ?   ?
-?   ?   ??? schemas/
-?   ?   ?   ??? user_schema.py
-?   ?   ?   ??? medication_schema.py
-?   ?   ?   ??? schedule_schema.py
-?   ?   ?   ??? dose_schema.py
-?   ?   ?
-?   ?   ??? services/
-?   ?       ??? reminder_service.py
-?   ?       ??? adherence_service.py
-?   ?
-?   ??? migrations/
-?   ??? instance/
-?   ?   ??? medireminder.db
-?   ?
-?   ??? tests/
-?   ??? requirements.txt
-?   ??? run.py
-?
-??? frontend/
-2. Explanation of each folder
-A. Models  Database structure
-The models define how information is stored in the database.
-Model
-Responsibility
-User
-Stores user account information.
-Medication
-Stores medication names, dosage, and instructions.
-MedicationSchedule
-Stores medication times and selected days.
-Dose
-Tracks whether a scheduled dose is taken, missed, or pending.
-B. Routes  API endpoints
-Routes receive requests from the React frontend and return responses.
-Route
-Responsibility
-Auth
-Registration, login, and logout.
-Medications
-Add, view, update, and delete medications.
-Schedules
-Create and manage medication schedules.
-Doses
-Mark doses as taken or missed.
-Reports
-Display daily and historical adherence reports.
-C. Schemas  Data validation
-Schemas ensure that information received from the frontend is valid.
-For example:
-* Medication name should not be empty.
-* Dosage should be provided.
-* Scheduled time should be valid.
-* Dose status should be an accepted value.
-D. Services  Business logic
-This folder handles operations that are more complex than simply receiving API requests.
-* Reminder Service: Determines which medication reminders are due.
-* Adherence Service: Calculates how consistently users follow their medication schedules.
-E. Migrations  Database changes
-Flask-Migrate manages changes to the database structure.
-For example, if we add a new column to the Medication table, migrations help update the database without manually rebuilding it.
-F. Tests  Backend testing
-Tests verify that the backend works correctly, including medication creation, schedule management, dose tracking, and authentication.
-3. How the database tables relate
-USER
-One user can have many medications
-One-to-Many
-MEDICATION
-Each medication belongs to one user
-One-to-Many
-SCHEDULE
-When to take it
-One-to-Many
-DOSE
-Taken, missed, pending
-A dose record represents a particular scheduled occurrence of a medication.
-4. How the backend communicates with React
-The communication happens through REST APIs.
-React Frontend
-User adds a medication
-Flask REST API
-Receives and processes the request
-SQLAlchemy
-Communicates with the database
-SQLite Database
-Stores medication information
-Example workflow:
-1. A user adds a medication in React.
-2. React sends a POST request to Flask.
-3. Flask validates the information.
-4. SQLAlchemy saves it in SQLite.
-5. Flask returns a response.
-6. React displays the saved medication.
-5. Important backend concepts to understand
-Technology
-What it does
-Flask
-Builds the backend application.
-SQLAlchemy
-Connects Python models to database tables.
-SQLite
-Stores application data.
-Flask-Migrate
-Manages database structure changes.
-Marshmallow
-Validates and serializes data.
-REST API
-Connects the frontend and backend.
-My recommendation: Build MediReminder in this order:
-1. Database models and relationships.
-2. Flask application setup.
-3. Database migrations.
-4. Medication CRUD APIs.
-5. Medication schedule APIs.
-6. Dose tracking APIs.
-7. Authentication.
-8. Reminder and adherence services.
-9. Reports and testing.
+```bash
+git clone https://github.com/Enos22/flask-c10-summative-lab-sessions-and-jwt-clients.git
+cd flask-c10-summative-lab-sessions-and-jwt-clients/server
+pipenv install
+pipenv shell
+```
+
+`pipenv install` reads the `Pipfile` and installs the dependencies, and `pipenv shell` activates the environment.
+
+### Set up the database
+
+<!-- TODO (lead): confirm these commands once the app factory and extensions.py are working. -->
+```bash
+flask db init        # only if the migrations/ folder does not exist yet
+flask db migrate -m "Create tables"
+flask db upgrade
+python seed.py
+```
+
+`flask db migrate` generates the migration from the models, `flask db upgrade` creates the tables, and `seed.py` fills them with example users, medications, schedules and doses.
+
+## Running the app
+
+<!-- TODO (lead): confirm the exact command (for example whether FLASK_APP must be set). -->
+```bash
+flask run
+
+```
+
+The API is then available at `http://127.0.0.1:5000`.
+
+## Running the tests
+
+<!-- TODO (team): add the test folder and confirm this command. -->
+```bash
+pipenv run pytest
+```
+
+## API endpoints
+
+All endpoints except signup and login require a logged-in user and return `401` otherwise.
+
+### Authentication
+
+<!-- TODO (Enos): list signup, login, logout and the check-session / me endpoint with methods, paths, bodies and status codes. -->
+
+### Medications
+
+<!-- TODO (Benson): list the medication CRUD endpoints with methods, paths, bodies and status codes. -->
+
+### Schedules (`/api/schedules`)
+
+| Method | Path | Description | Success | Errors |
+|---|---|---|---|---|
+| `GET` | `/api/schedules` | List the logged-in user's schedules, paginated | `200` | `401` |
+| `GET` | `/api/schedules/<id>` | Get one schedule | `200` | `401`, `404` |
+| `POST` | `/api/schedules` | Create a schedule for one of the user's medications | `201` | `401`, `404`, `422` |
+| `PATCH` / `PUT` | `/api/schedules/<id>` | Update any of the schedule's fields | `200` | `401`, `404`, `422` |
+| `DELETE` | `/api/schedules/<id>` | Delete a schedule | `204` | `401`, `404` |
+
+**Pagination.** `GET /api/schedules` accepts `page` (default `1`), `per_page` (default `10`, maximum `50`) and an optional `medication_id` filter. It returns:
+
+```json
+{
+  "items": [],
+  "page": 1,
+  "per_page": 10,
+  "total": 0,
+  "pages": 0
+}
+```
+
+**Schedule fields**
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | integer | Read only |
+| `medication_id` | integer | Required on create; must belong to the logged-in user |
+| `reminder_time` | string | Required, `"HH:MM"` in 24-hour time, for example `"08:30"` |
+| `days_of_week` | list of strings | Required, at least one of `mon`, `tue`, `wed`, `thu`, `fri`, `sat`, `sun`; stored in week order |
+| `is_active` | boolean | Optional, defaults to `true` |
+
+**Example request**
+
+```json
+POST /api/schedules
+{
+  "medication_id": 1,
+  "reminder_time": "08:30",
+  "days_of_week": ["wed", "mon"]
+}
+```
+
+**Example response** (`201`)
+
+```json
+{
+  "id": 1,
+  "medication_id": 1,
+  "reminder_time": "08:30",
+  "days_of_week": ["mon", "wed"],
+  "is_active": true
+}
+```
+
+A schedule that belongs to another user's medication returns `404`, not `403`, so the API does not reveal that it exists. Validation problems return `422` with a message for each invalid field.
+
+### Doses
+
+<!-- TODO (Wayne): list the dose endpoints (view scheduled doses, mark taken, mark missed) with methods, paths, bodies and status codes. -->
+
+### Reports
+
+<!-- TODO (Faith): list the report endpoints (upcoming reminders, adherence, daily report) with methods, paths and status codes. -->
+
+## Team and responsibilities
+
+| Member | Module | Files |
+|---|---|---|
+| Enos Arenga | Authentication and users: signup, login, logout, password hashing, access protection | `routes/auth_routes.py`, `models/user.py`, `schemas/user_schema.py` |
+| Benson Maina | Medication management: add, view, update and delete medications | `routes/medication_routes.py`, `models/medication.py`, `schemas/medication_schema.py` |
+| Samadi | Medication scheduling: create, update and delete schedules, reminder times, days of the week | `routes/schedules.py`, `models/medication_schedule.py`, `schemas/schedule_schema.py` |
+| Wayne Markouma | Dose tracking: show scheduled doses, mark taken or missed, record when taken | `routes/dose_routes.py`, `models/dose.py`, `schemas/dose_schema.py` |
+| Faith | Reminders and reports: upcoming reminders, adherence, daily reports | `routes/reports_routes.py`, `services/reminder_service.py`, `services/adherence_service.py` |
+
+The team lead coordinates the shared setup (`app/__init__.py`, `extensions.py`, the dependency file), the database migrations, code reviews and the final integration.
+
+## Team workflow
+
+- Each member works on their own feature branch and merges through a pull request.
+- Shared files (`app/__init__.py`, `extensions.py`, the dependency file) are edited only by the lead.
+- Pull requests are reviewed and merged by the lead, not by their author.
+- Database relationships and response formats are agreed before development, and one person coordinates the migrations.
+
