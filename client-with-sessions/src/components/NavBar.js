@@ -2,8 +2,8 @@ import React from "react";
 import { Link } from "react-router-dom";
 import styled from "styled-components";
 import { Button } from "../styles";
-
-function NavBar({ user, setUser }) {
+/* addec the onshow doses button*/
+function NavBar({ user, setUser, onShowDoses }) {
   function handleLogoutClick() {
     fetch("/logout", { method: "DELETE" }).then((r) => {
       if (r.ok) {
@@ -18,8 +18,9 @@ function NavBar({ user, setUser }) {
         <Link to="/">My App</Link>
       </Logo>
       <Nav>
-        <Button>
-          Do Something
+        {/* Ask the parent to switch to the signed-in dose view. */}
+        <Button onClick={onShowDoses}>
+          Today’s doses
         </Button>
         <Button variant="outline" onClick={handleLogoutClick}>
           Logout
