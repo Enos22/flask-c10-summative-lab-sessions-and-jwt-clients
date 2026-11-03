@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
 import NavBar from "./NavBar";
 import Login from "../pages/Login";
+import TodayDoses from "../pages/TodayDoses";
 
 function App() {
   const [user, setUser] = useState(null);
+  // Keep the dose view opt-in so the existing post-login screen stays the default.
+  const [showDoses, setShowDoses] = useState(false);
 
   useEffect(() => {
     fetch("/check_session").then((r) => {
@@ -17,9 +20,14 @@ function App() {
 
   return (
     <>
-      <NavBar user={user} setUser={setUser} />
+    
+      <NavBar
+        user={user}
+        setUser={setUser}
+        onShowDoses={() => setShowDoses(true)}
+      />
       <main>
-        <p>You are logged in!</p>
+        {showDoses ? <TodayDoses /> : <p>You are logged in!</p>}
       </main>
     </>
   );
