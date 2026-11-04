@@ -10,10 +10,10 @@ and what percentage of resolved doses were taken.
 """
 from datetime import date, datetime, timedelta
 
-from server.extensions import db
-from server.models.dose import Dose
-from server.models.medication import Medication
-from server.models.medication_schedule import MedicationSchedule
+from extensions import db
+from models.dose import Dose
+from models.medication import Medication
+from models.medication_schedule import MedicationSchedule
 
 # A pending dose becomes "missed" this many minutes after its scheduled time.
 GRACE_MINUTES = 60

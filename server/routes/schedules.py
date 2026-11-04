@@ -6,13 +6,9 @@ from marshmallow import ValidationError
 from extensions import db
 from models.medication import Medication
 from models.medication_schedule import MedicationSchedule
-from schemas.schedule_schema import ScheduleSchema
+from schemas.schedule_schema import schedule_schema, schedules_schema
 
 schedules_bp = Blueprint("schedules", __name__, url_prefix="/api/schedules")
-
-schedule_schema = ScheduleSchema()
-schedules_schema = ScheduleSchema(many=True)
-
 MAX_PER_PAGE = 50
 
 
@@ -26,7 +22,6 @@ def login_required(view):
         if current_user_id() is None:
             return jsonify(error="Authentication required."), 401
         return view(*args, **kwargs)
-
     return wrapper
 
 
@@ -42,18 +37,16 @@ def get_owned_schedule(schedule_id):
 
 
 def owns_medication(medication_id):
-    return (
-        Medication.query.filter_by(id=medication_id, user_id=current_user_id()).first()
-        is not None
-    )
+    return Medication.query.filter_by(
+        id=medication_id, user_id=current_user_id()
+    ).first() is not None
 
 
 @schedules_bp.get("")
 @login_required
 def list_schedules():
-    page = request.args.get("page", 1, type=int)
-    per_page = min(request.args.get("per_page", 10, type=int), MAX_PER_PAGE)
-
+    page = max(request.args.get("page", 1, type=int), 1)
+    per_page = min(max(request.args.get("per_page", 10, type=int), 1), MAX_PER_PAGE)
     query = (
         MedicationSchedule.query.join(Medication)
         .filter(Medication.user_id == current_user_id())
@@ -64,16 +57,13 @@ def list_schedules():
         query = query.filter(MedicationSchedule.medication_id == medication_id)
 
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-    return (
-        jsonify(
-            items=schedules_schema.dump(pagination.items),
-            page=pagination.page,
-            per_page=pagination.per_page,
-            total=pagination.total,
-            pages=pagination.pages,
-        ),
-        200,
-    )
+    return jsonify(
+        items=schedules_schema.dump(pagination.items),
+        page=pagination.page,
+        per_page=pagination.per_page,
+        total=pagination.total,
+        pages=pagination.pages,
+    ), 200
 
 
 @schedules_bp.get("/<int:schedule_id>")
@@ -96,7 +86,12 @@ def create_schedule():
     if not owns_medication(data["medication_id"]):
         return jsonify(error="Medication not found."), 404
 
-    schedule = MedicationSchedule(**data)
+    schedule = MedicationSchedule(
+        medication_id=data["medication_id"],
+        reminder_time=data["reminder_time"],
+        days_list=data["days_list"],
+        is_active=data.get("is_active", True),
+    )
     db.session.add(schedule)
     db.session.commit()
     return jsonify(schedule_schema.dump(schedule)), 201
@@ -110,7 +105,9 @@ def update_schedule(schedule_id):
         return jsonify(error="Schedule not found."), 404
 
     try:
-        data = schedule_schema.load(request.get_json(silent=True) or {}, partial=True)
+        data = schedule_schema.load(
+            request.get_json(silent=True) or {}, partial=True
+        )
     except ValidationError as err:
         return jsonify(errors=err.messages), 422
 
@@ -129,7 +126,6 @@ def delete_schedule(schedule_id):
     schedule = get_owned_schedule(schedule_id)
     if schedule is None:
         return jsonify(error="Schedule not found."), 404
-
     db.session.delete(schedule)
     db.session.commit()
     return "", 204

@@ -1,5 +1,5 @@
 from sqlalchemy.ext.hybrid import hybrid_property
-from app.config import db, bcrypt
+from extensions import db, bcrypt
 
 class User(db.Model):
     __tablename__='users'
