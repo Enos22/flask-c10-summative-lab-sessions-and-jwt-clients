@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Button, Error, Input, FormField, Label } from "../styles";
+import { apiRequest } from "../api";
 
 function LoginForm({ onLogin }) {
   const [username, setUsername] = useState("");
@@ -7,23 +8,21 @@ function LoginForm({ onLogin }) {
   const [errors, setErrors] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
+    setErrors([]);
     setIsLoading(true);
-    fetch("/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, password }),
-    }).then((r) => {
+    try {
+      const user = await apiRequest("/login", {
+        method: "POST",
+        body: JSON.stringify({ username, password }),
+      });
+      onLogin(user);
+    } catch (error) {
+      setErrors([error.message]);
+    } finally {
       setIsLoading(false);
-      if (r.ok) {
-        r.json().then((user) => onLogin(user));
-      } else {
-        r.json().then((err) => setErrors(err.errors));
-      }
-    });
+    }
   }
 
   return (

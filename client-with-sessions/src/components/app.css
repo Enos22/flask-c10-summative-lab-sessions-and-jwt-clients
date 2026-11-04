@@ -1,0 +1,355 @@
+
+
+/* COLORS & THEME */
+:root {
+  --primary: #1f7a5f;
+  --primary-dark: #155c48;
+  --primary-light: #e6f4ee;
+  --accent: #f2b441;
+
+  --ink: #17332a;
+  --muted: #6f857a;
+  --background: #f1f6f3;
+  --white: #ffffff;
+  --border: #e1eae4;
+
+  --danger: #c9504a;
+  --danger-light: #fdecea;
+
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 26px;
+
+  --shadow-sm: 0 2px 8px rgba(23, 51, 42, 0.05);
+  --shadow: 0 10px 30px rgba(23, 51, 42, 0.08);
+  --shadow-lg: 0 18px 44px rgba(23, 51, 42, 0.14);
+
+  --gradient: linear-gradient(
+    135deg,
+    #040806 0%,
+    #2da17e 55%,
+    #066122 100%
+  );
+}
+
+/*  BASE  */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-image: 
+    url("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ0USkOESHYfJwANvPEDoPc2VJuxPvw5vNCHIJU0o7DyQ&s=10"),
+    linear-gradient(135deg, #B3C1C4 0%, #5E72B5 55%, #3A8794 100%);
+  
+  background-blend-mode: overlay;
+  background-attachment: fixed;
+  background-size: cover;
+  background-position: center;
+
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, "Segoe UI", sans-serif;
+  color: var(--ink);
+}
+
+/*  PAGE LAYOUT  */
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+main {
+  width: min(1100px, calc(100% - 40px));
+  margin: 40px auto 70px;
+}
+
+/*  HERO SECTION  */
+.hero {
+  padding: 56px 40px;
+  border-radius: var(--radius-lg);
+  background: var(--gradient);
+  color: rgb(163, 141, 141);
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+
+.hero h1 {
+  margin-bottom: 12px;
+  font-size: clamp(30px, 4.5vw, 44px);
+}
+
+.hero p {
+  max-width: 600px;
+  margin: auto;
+}
+
+/*  NAVIGATION  */
+.nav {
+  position: sticky;
+  top: 14px;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 999px;
+  background: rgba(63, 221, 230, 0.85);
+}
+
+.nav a {
+  padding: 10px 20px;
+  text-decoration: none;
+  border-radius: 999px;
+}
+
+.nav a.active {
+  background: var(--primary);
+  color: white;
+}
+
+/*  CONTENT CARDS  */
+.card {
+  padding: 32px;
+  background: rgb(52, 47, 71);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+/*  DASHBOARD STATS  */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 18px;
+}
+
+.stat-card {
+  padding: 22px;
+  display: flex;
+  gap: 16px;
+  border-radius: var(--radius-md);
+  background: rgb(72, 68, 68);
+}
+
+/* MEDICATIONS PAGE */
+
+.medications-container {
+  width: min(1100px, calc(100% - 40px));
+  margin: 40px auto;
+}
+
+.medications-container h2 {
+  text-align: center;
+  font-size: 30px;
+  margin-bottom: 30px;
+}
+
+.medication-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 24px;
+}
+
+.medication-card {
+  width: 100%;
+  max-width: none;
+}
+
+.medication-icon {
+  font-size: 36px;
+  margin-bottom: 12px;
+}
+
+.medication-card h3 {
+  color: #787f7d;
+  font-size: 22px;
+  margin-bottom: 18px;
+}
+
+.medication-info p {
+  color: #030404;
+  line-height: 1.6;
+  margin: 12px 0;
+}
+
+.medication-card strong {
+  color: #17332a;
+}
+
+.medication-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cancel-button {
+  background: #777;
+}
+
+.medication-card form {
+  display: grid;
+  gap: 15px;
+}
+
+@media (max-width: 650px) {
+  .medications-container {
+    width: calc(100% - 24px);
+  }
+
+  .medication-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/*  TIMELINE  */
+.timeline {
+  padding-left: 26px;
+  list-style: none;
+}
+
+/*  FORMS  */
+form {
+  display: grid;
+  gap: 20px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 18px;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 12px 15px;
+  border-radius: 14px;
+}
+
+/* DOSES PAGE */
+.doses-container {
+  width: min(1100px, calc(100% - 40px));
+  margin: 40px auto;
+}
+
+.doses-container h2 {
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 30px;
+}
+
+.doses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 24px;
+}
+
+.dose-card {
+  min-width: 0;
+  background-color: #6f857a;
+}
+
+.dose-icon {
+  font-size: 35px;
+  margin-bottom: 12px;
+}
+
+.dose-card h3 {
+  color: rgb(164, 177, 173);
+  font-size: 20px;
+  margin-bottom: 18px;
+}
+
+.dose-card p {
+  color: var(--muted);
+  margin: 12px 0;
+}
+
+.dose-status {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.dose-status.taken {
+  background: #9cada2;
+  color: #166534;
+}
+
+.dose-status.missed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.dose-status.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+@media (max-width: 650px) {
+  .doses-container {
+    width: calc(100% - 24px);
+  }
+
+  .doses-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/*  BUTTONS  */
+button {
+  padding: 13px 22px;
+  border: none;
+  border-radius: 14px;
+  background: var(--gradient);
+  color: white;
+  cursor: pointer;
+}
+
+/*  STATUS BADGES  */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+
+/*  EMPTY STATE  */
+.empty-state {
+  padding: 56px 24px;
+  text-align: center;
+}
+
+/*  ANIMATIONS  */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/*  MOBILE  */
+@media (max-width: 650px) {
+  main {
+    width: calc(100% - 24px);
+  }
+
+  .medication-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}

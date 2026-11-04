@@ -2,7 +2,7 @@
 
 This React application provides a complete **session-based authentication flow** (sign up, log in, check session, log out). It is designed to connect to your **Flask backend** that manages user state using **Flask sessions**.
 
-You will not need to modify this frontend. However, your backend must implement and support the routes described below for the client to function properly.
+The client uses Flask sessions and the API routes described below. Its medication and schedule forms match the backend schemas in this project.
 
 ---
 
@@ -104,8 +104,9 @@ This app handles user authentication and session state using the following endpo
 
 **Response (if not logged in)**:
 ```json
-{}
+{"errors":["Authentication required"]}
 ```
+Status: `401`
 
 ---
 
@@ -114,10 +115,7 @@ This app handles user authentication and session state using the following endpo
 **Description**: Ends the session by removing `user_id` from the session store.  
 **Headers**: _(none required)_
 
-**Response**:
-```json
-{}
-```
+**Response**: `204 No Content`
 
 ---
 
@@ -129,14 +127,28 @@ This app handles user authentication and session state using the following endpo
 
 ---
 
-## Custom Resource Endpoints
+## This Flask project
 
-This frontend does **not include fetch calls** for your custom resource (e.g., `/notes`, `/entries`, `/tasks`). These will be added by the frontend team after your backend is complete.
+The client uses the Create React App proxy in `package.json` to send relative
+requests to Flask on `http://localhost:5555`. Run the React app at
+`http://localhost:4000`, which is the origin allowed by the Flask CORS setup.
+Session requests include credentials.
 
-Ensure your resource routes:
-- Are fully protected: require login to access.
-- Use `session['user_id']` to associate and filter data per user.
-- Follow RESTful patterns: `GET`, `POST`, `PATCH`, `DELETE`.
-- Include pagination support where appropriate (e.g., `GET /notes?page=1&per_page=10`).
+Medication requests use the routes implemented in `routes/medication_routes.py`:
+
+- `POST /api/medications/addmedication`
+- `GET /api/medications/getmedications`
+- `PATCH /api/medications/update/<id>`
+- `DELETE /api/medications/delete/<id>`
+
+The medication request fields are `name`, `dosage`, `instructions`,
+`start_date`, and `end_date`.
+
+Schedules use `/api/schedules`; doses and dose status updates use `/api/doses`.
+Those blueprints exist in the backend source, but the `create_app()` used by
+`run.py` currently registers only medications and reports. Register
+`schedules_bp` and `dose_bp` in that app before using schedule management or
+the Taken/Missed buttons. The daily dose report at `/api/reports/daily` is
+registered and can be viewed without those blueprints.
 
 ---
