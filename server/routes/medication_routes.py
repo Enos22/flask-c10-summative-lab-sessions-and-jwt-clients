@@ -1,191 +1,108 @@
-#benson
-from flask import Blueprint, request, jsonify, session
+from functools import wraps
 
+from flask import Blueprint, jsonify, request, session
 from marshmallow import ValidationError
 
 from extensions import db
 from models.medication import Medication
-from schemas.medication_schema import (
-    medication_schema,
-    medications_schema
-)
+from schemas.medication_schema import medication_schema, medications_schema
 
 medications_bp = Blueprint(
-    "medications",
-    __name__,
-    url_prefix="/api/medications"
+    "medications", __name__, url_prefix="/api/medications"
 )
 
 
-# CREATE: Add a medication
-@medications_bp.route("/addmedication", methods=["POST"])
+def login_required(view):
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if session.get("user_id") is None:
+            return jsonify(error="Please log in first"), 401
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def get_owned_medication(medication_id):
+    return Medication.query.filter_by(
+        id=medication_id, user_id=session["user_id"]
+    ).first()
+
+
+@medications_bp.post("/addmedication")
+@login_required
 def add_medication():
-
-    user_id = session.get("user_id")
-
-    if not user_id:
-        return jsonify({"error": "Please log in first"}), 401
-
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"error": "Request body is required"}), 400
-
     try:
-        medication_data = medication_schema.load(data)
+        data = medication_schema.load(request.get_json(silent=True) or {})
+    except ValidationError as err:
+        return jsonify(errors=err.messages), 400
 
-        medication = Medication(
-            name=medication_data["name"],
-            dosage=medication_data["dosage"],
-            instructions=medication_data.get("instructions"),
-            start_date=medication_data["start_date"],
-            end_date=medication_data.get("end_date"),
-            user_id=user_id
-        )
-
-        db.session.add(medication)
-        db.session.commit()
-
-        return jsonify({
-            "message": "Medication added successfully",
-            "medication": medication_schema.dump(medication)
-        }), 201
-
-    except ValidationError as error:
-        db.session.rollback()
-        return jsonify({"errors": error.messages}), 400
-
-    except Exception:
-        db.session.rollback()
-        return jsonify({"error": "Could not add medication"}), 500
+    medication = Medication(
+        name=data["name"],
+        dosage=data["dosage"],
+        instructions=data.get("instructions"),
+        start_date=data["start_date"],
+        end_date=data.get("end_date"),
+        user_id=session["user_id"],
+    )
+    db.session.add(medication)
+    db.session.commit()
+    return jsonify(
+        message="Medication added successfully",
+        medication=medication_schema.dump(medication),
+    ), 201
 
 
-# READ: View all medications
-@medications_bp.route("/getmedications", methods=["GET"])
+@medications_bp.get("/getmedications")
+@login_required
 def get_medications():
-
-    user_id = session.get("user_id")
-
-    if not user_id:
-        return jsonify({"error": "Please log in first"}), 401
-#correcteed the db quary from .all to .filter_by
-    medications = Medication.query.filter_by(user_id=user_id).all()
-    print(medications)
-    return jsonify({
-        "medications": medications_schema.dump(medications)
-    }), 200
+    medications = Medication.query.filter_by(
+        user_id=session["user_id"]
+    ).order_by(Medication.id.desc()).all()
+    return jsonify(medications=medications_schema.dump(medications)), 200
 
 
-# READ: View one medication
-@medications_bp.route("/getmedication/<int:medication_id>", methods=["GET"])
+@medications_bp.get("/getmedication/<int:medication_id>")
+@login_required
 def get_medication(medication_id):
-
-    user_id = session.get("user_id")
-
-    if not user_id:
-        return jsonify({"error": "Please log in first"}), 401
-
-    medication = Medication.query.filter_by(
-        id=medication_id,
-        user_id=user_id
-    ).first()
-
+    medication = get_owned_medication(medication_id)
     if medication is None:
-        return jsonify({"error": "Medication not found"}), 404
-
-    return jsonify({
-        "medication": medication_schema.dump(medication)
-    }), 200
+        return jsonify(error="Medication not found"), 404
+    return jsonify(medication=medication_schema.dump(medication)), 200
 
 
-# UPDATE: Update medication
-@medications_bp.route("/update/<int:medication_id>", methods=["PATCH"])
+@medications_bp.patch("/update/<int:medication_id>")
+@login_required
 def update_medication(medication_id):
-
-    user_id = session.get("user_id")
-
-    if not user_id:
-        return jsonify({"error": "Please log in first"}), 401
-
-    medication = Medication.query.filter_by(
-        id=medication_id,
-        user_id=user_id
-    ).first()
-
+    medication = get_owned_medication(medication_id)
     if medication is None:
-        return jsonify({"error": "Medication not found"}), 404
-
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"error": "Request body is required"}), 400
+        return jsonify(error="Medication not found"), 404
 
     try:
-        updated_data = medication_schema.load(
-            data,
-            partial=True
+        data = medication_schema.load(
+            request.get_json(silent=True) or {}, partial=True
         )
+    except ValidationError as err:
+        return jsonify(errors=err.messages), 400
 
-        new_start_date = updated_data.get(
-            "start_date", medication.start_date
-        )
+    start_date = data.get("start_date", medication.start_date)
+    end_date = data.get("end_date", medication.end_date)
+    if end_date and end_date < start_date:
+        return jsonify(error="End date cannot be before start date"), 400
 
-        new_end_date = updated_data.get(
-            "end_date", medication.end_date
-        )
-
-        if new_end_date and new_end_date < new_start_date:
-            return jsonify({
-                "error": "End date cannot be before start date"
-            }), 400
-
-        for field, value in updated_data.items():
-            setattr(medication, field, value)
-
-        db.session.commit()
-
-        return jsonify({
-            "message": "Medication updated successfully",
-            "medication": medication_schema.dump(medication)
-        }), 200
-
-    except ValidationError as error:
-        db.session.rollback()
-        return jsonify({"errors": error.messages}), 400
-
-    except Exception:
-        db.session.rollback()
-        return jsonify({"error": "Could not update medication"}), 500
+    for key, value in data.items():
+        setattr(medication, key, value)
+    db.session.commit()
+    return jsonify(
+        message="Medication updated successfully",
+        medication=medication_schema.dump(medication),
+    ), 200
 
 
-# DELETE: Delete medication
-@medications_bp.route("/delete/<int:medication_id>", methods=["DELETE"])
+@medications_bp.delete("/delete/<int:medication_id>")
+@login_required
 def delete_medication(medication_id):
-
-    user_id = session.get("user_id")
-
-    if not user_id:
-        return jsonify({"error": "Please log in first"}), 401
-
-    medication = Medication.query.filter_by(
-        id=medication_id,
-        user_id=user_id
-    ).first()
-
+    medication = get_owned_medication(medication_id)
     if medication is None:
-        return jsonify({"error": "Medication not found"}), 404
-
-    try:
-        db.session.delete(medication)
-        db.session.commit()
-
-        return jsonify({
-            "message": "Medication deleted successfully"
-        }), 200
-
-    except Exception:
-        db.session.rollback()
-
-        return jsonify({
-            "error": "Could not delete medication"
-        }), 500
+        return jsonify(error="Medication not found"), 404
+    db.session.delete(medication)
+    db.session.commit()
+    return jsonify(message="Medication deleted successfully"), 200

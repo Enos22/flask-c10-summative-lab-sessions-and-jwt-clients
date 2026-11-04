@@ -2,14 +2,17 @@ import React from "react";
 import { Link } from "react-router-dom";
 import styled from "styled-components";
 import { Button } from "../styles";
-/* addec the onshow doses button*/
-function NavBar({ user, setUser, onShowDoses }) {
-  function handleLogoutClick() {
-    fetch("/logout", { method: "DELETE" }).then((r) => {
-      if (r.ok) {
-        setUser(null);
-      }
-    });
+import { apiRequest } from "../api";
+
+function NavBar({ setUser }) {
+
+  async function handleLogoutClick() {
+    try {
+      await apiRequest("/logout", { method: "DELETE" });
+      setUser(null);
+    } catch (error) {
+      window.alert(error.message);
+    }
   }
 
   return (
@@ -17,11 +20,36 @@ function NavBar({ user, setUser, onShowDoses }) {
       <Logo>
         <Link to="/">My App</Link>
       </Logo>
+
       <Nav>
-        {/* Ask the parent to switch to the signed-in dose view. */}
-        <Button onClick={onShowDoses}>
-          Today’s doses
+
+        <Button as={Link} to="/view-medications">
+    View Medications
+</Button>
+
+<Button as={Link} to="/view-doses">
+    View Doses
+</Button> 
+        <Button as={Link} to="/today-doses">
+          Today's doses
         </Button>
+
+        <Button as={Link} to="/add-medication">
+          Add medication
+        </Button>
+
+        <Button as={Link} to="/delete-medication">
+          Delete medication
+        </Button>
+
+        <Button as={Link} to="/add-dosage">
+          Add schedule
+        </Button>
+
+        <Button as={Link} to="/delete-dosage">
+          Manage schedules
+        </Button>
+
         <Button variant="outline" onClick={handleLogoutClick}>
           Logout
         </Button>

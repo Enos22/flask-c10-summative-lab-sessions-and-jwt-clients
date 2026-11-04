@@ -13,10 +13,10 @@ Assumed model fields (agree these with the team before merging):
 """
 from datetime import date, datetime, timedelta
 
-from server.extensions import db
-from server.models.dose import Dose
-from server.models.medication import Medication
-from server.models.medication_schedule import MedicationSchedule
+from extensions import db
+from models.dose import Dose
+from models.medication import Medication
+from models.medication_schedule import MedicationSchedule
 
 DAY_NAMES = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]  # Monday = 0
 

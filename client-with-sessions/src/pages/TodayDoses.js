@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import styled from "styled-components";
 import { Button } from "../styles";
+import { apiRequest } from "../api";
 
 function TodayDoses() {
   const [report, setReport] = useState(null);
@@ -14,11 +15,7 @@ function TodayDoses() {
 
     try {
       // The daily report groups today's doses by status and ensures pending doses exist.
-      const response = await fetch("/api/reports/daily");
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || data.errors?.[0] || "Unable to load today’s doses.");
-      }
+      const data = await apiRequest("/api/reports/daily");
       setReport(data);
     } catch (loadError) {
       setError(loadError.message || "Unable to load today’s doses.");
@@ -36,15 +33,10 @@ function TodayDoses() {
     setError("");
 
     try {
-      const response = await fetch(`/api/doses/${doseId}/${status}`, {
+      await apiRequest(`/api/doses/${doseId}/${status}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || data.errors?.[0] || "Unable to update dose.");
-      }
       // Reload the server's canonical dose/report state after each change.
       await loadDoses();
     } catch (updateError) {
