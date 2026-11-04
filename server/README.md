@@ -2,12 +2,11 @@
 
 ## Description
 
-MediReminder is a REST API backend for a medication reminder app. Users sign up, log in, and manage their own medications, the schedules for taking them, and a record of whether each dose was taken or missed. The API serves a React frontend and is built with Flask, Flask-SQLAlchemy, Flask-Migrate and Marshmallow, using SQLite for storage.
+MediReminder is a REST API backend for a medication reminder app. Users sign up, log in, and manage their own medications, the schedules for taking them, and a record of whether each dose was taken or missed. The API serves a React frontend and is built with Flask, Flask-SQLAlchemy, Flask-Migrate, Flask-Bcrypt and Marshmallow, using SQLite for storage.
 
-Every resource is owned by a user. Users can only see and change their own data.
+Every resource is owned by a user, and users can only see and change their own data.
 
-<!-- TODO (team): confirm session-based auth is the final choice (the repo also ships a JWT client). -->
-Authentication is session-based: logging in stores the user's id in the session, and protected routes return `401` when nobody is logged in.
+Authentication is session-based: logging in stores the user's id in the session cookie, and protected routes return `401` when nobody is logged in.
 
 ### Data model
 
@@ -27,16 +26,17 @@ User  ->  Medication  ->  MedicationSchedule  ->  Dose
 
 ```
 server/
-├── app/                    # application package and configuration
-│   ├── __init__.py
-│   └── config.py
-├── extensions.py           # shared extension objects (db, bcrypt, migrate)
+├── app/
+│   ├── __init__.py         # application factory (create_app)
+│   ├── app.py              # compatibility shim for older scripts
+│   └── config.py           # app and database configuration
+├── extensions.py           # shared db, bcrypt, migrate and api objects
 ├── models/                 # SQLAlchemy models
 │   ├── user.py
 │   ├── medication.py
 │   ├── medication_schedule.py
 │   └── dose.py
-├── routes/                 # API endpoints (one blueprint per resource)
+├── routes/                 # API endpoints, one blueprint per resource
 │   ├── auth_routes.py
 │   ├── medication_routes.py
 │   ├── schedules.py
@@ -44,13 +44,18 @@ server/
 │   └── reports_routes.py
 ├── schemas/                # Marshmallow validation and serialization
 ├── services/               # reminder and adherence logic
+├── migrations/             # Flask-Migrate files
+├── tests/                  # automated tests
+├── run.py                  # starts the app
 ├── seed.py                 # example data for all models
 └── Pipfile                 # dependencies
 ```
 
+`app/__init__.py` is the only application factory, and `run.py` starts it.
+
 ## Installation
 
-Requirements: Python 3.8 or newer, Git and [Pipenv](https://pipenv.pypa.io/).
+Requirements: Python 3.8 or newer, Git, and [Pipenv](https://pipenv.pypa.io/).
 
 ```bash
 git clone https://github.com/Enos22/flask-c10-summative-lab-sessions-and-jwt-clients.git
@@ -61,54 +66,87 @@ pipenv shell
 
 `pipenv install` reads the `Pipfile` and installs the dependencies, and `pipenv shell` activates the environment.
 
-### Set up the database
+If you prefer plain pip, run `pip install -r requirements.txt` from the `server` directory instead.
 
-<!-- TODO (lead): confirm these commands once the app factory and extensions.py are working. -->
+### Database
+
+The tables are created automatically when the app starts (`db.create_all()`). Use migrations when you change the model definitions:
+
 ```bash
-flask db init        # only if the migrations/ folder does not exist yet
-flask db migrate -m "Create tables"
-flask db upgrade
+flask --app run.py db init        # only if the migrations/ folder does not exist
+flask --app run.py db migrate -m "describe the change"
+flask --app run.py db upgrade
+```
+
+For an existing database, do not delete the database file or the `migrations` folder. Back up the database before changing the schema.
+
+### Seed data
+
+<!-- TODO (team): confirm this command against seed.py. -->
+```bash
 python seed.py
 ```
 
-`flask db migrate` generates the migration from the models, `flask db upgrade` creates the tables, and `seed.py` fills them with example users, medications, schedules and doses.
+This creates example users, medications, schedules and doses.
 
 ## Running the app
 
-<!-- TODO (lead): confirm the exact command (for example whether FLASK_APP must be set). -->
+From the `server` directory:
+
 ```bash
-flask run
+python run.py
 ```
 
-The API is then available at `http://127.0.0.1:5000`.
+The API runs at `http://127.0.0.1:5555` in debug mode.
+
+### Running the frontend
+
+```bash
+cd client-with-sessions
+npm install
+npm start
+```
+
+The React app opens at `http://localhost:4000` and forwards API requests to port `5555`. The API accepts requests only from `http://localhost:4000`, and fetch calls from React must include `credentials: "include"` so the session cookie is sent. If the frontend moves to another address, update the CORS origin in `app/__init__.py`.
 
 ## Running the tests
 
-<!-- TODO (team): add the test folder and confirm this command. -->
+<!-- TODO (team): confirm the test command. -->
 ```bash
-pipenv run pytest
+pytest
 ```
 
 ## API endpoints
 
-All endpoints except signup and login require a logged-in user and return `401` otherwise.
+Every endpoint except signup and login requires a logged-in user and returns `401` otherwise.
 
 ### Authentication
 
-<!-- TODO (Enos): list signup, login, logout and the check-session / me endpoint with methods, paths, bodies and status codes. -->
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/signup` | Create a user account |
+| `POST` | `/login` | Log in and start a session |
+| `DELETE` | `/logout` | Log out and end the session |
+| `GET` | `/check_session` | Return the logged-in user, so users stay logged in on refresh |
 
 ### Medications
 
-<!-- TODO (Benson): list the medication CRUD endpoints with methods, paths, bodies and status codes. -->
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/medications/addmedication` | Add a medication |
+| `GET` | `/api/medications/getmedications` | List the logged-in user's medications |
+| `GET` | `/api/medications/getmedication/<id>` | Get one medication |
+| `PATCH` | `/api/medications/update/<id>` | Update a medication |
+| `DELETE` | `/api/medications/delete/<id>` | Delete a medication |
 
-### Schedules (`/api/schedules`)
+### Schedules
 
 | Method | Path | Description | Success | Errors |
 |---|---|---|---|---|
 | `GET` | `/api/schedules` | List the logged-in user's schedules, paginated | `200` | `401` |
 | `GET` | `/api/schedules/<id>` | Get one schedule | `200` | `401`, `404` |
 | `POST` | `/api/schedules` | Create a schedule for one of the user's medications | `201` | `401`, `404`, `422` |
-| `PATCH` / `PUT` | `/api/schedules/<id>` | Update any of the schedule's fields | `200` | `401`, `404`, `422` |
+| `PATCH` / `PUT` | `/api/schedules/<id>` | Update a schedule | `200` | `401`, `404`, `422` |
 | `DELETE` | `/api/schedules/<id>` | Delete a schedule | `204` | `401`, `404` |
 
 **Pagination.** `GET /api/schedules` accepts `page` (default `1`), `per_page` (default `10`, maximum `50`) and an optional `medication_id` filter. It returns:
@@ -160,11 +198,21 @@ A schedule that belongs to another user's medication returns `404`, not `403`, s
 
 ### Doses
 
-<!-- TODO (Wayne): list the dose endpoints (view scheduled doses, mark taken, mark missed) with methods, paths, bodies and status codes. -->
+The dose resource is `/api/doses`.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/doses` | List the logged-in user's scheduled doses |
+| `GET` | `/api/doses/<id>` | Get one dose |
+| `PATCH` | `/api/doses/<id>/taken` | Mark a dose as taken and record when |
+| `PATCH` | `/api/doses/<id>/missed` | Mark a dose as missed |
 
 ### Reports
 
-<!-- TODO (Faith): list the report endpoints (upcoming reminders, adherence, daily report) with methods, paths and status codes. -->
+<!-- TODO (Faith): replace this row with the exact report paths and what each returns. -->
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/reports/...` | Daily and historical adherence reports, upcoming reminders |
 
 ## Team and responsibilities
 
